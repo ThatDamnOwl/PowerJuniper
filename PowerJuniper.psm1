@@ -2,11 +2,8 @@
 $OldVerbose = $VerbosePreference
 $VerbosePreference = "SilentlyContinue"
 
-Import-module Posh-SSH -force -verbose:$False
-Import-module CommonFunctions -force -verbose:$False
-Import-module DnsClient -force -verbose:$False
-Import-module NetAdapter -force -verbose:$False
-Import-module NetTCPIP -force -verbose:$False
+Import-module Posh-SSH -force -verbose:$False -ErrorAction SilentlyContinue
+Import-module CommonFunctions -force -verbose:$False -ErrorAction SilentlyContinue
 
 if (-not (Test-Path C:\Temp))
 {
@@ -81,24 +78,63 @@ Function Get-JuniperXML
     param
     (
         [Parameter(Mandatory=$false)]
-        [string]$Hostname,
+        [string]
+        $Hostname,
         [Parameter(Mandatory=$false)]
         [System.Management.Automation.PsCredential]
-        $Creds,
+        $Credential,
         [Parameter(Mandatory=$false)]
         [SSH.SshSession]
         $Session,
         [Parameter(Mandatory=$false)]
         [string]
-        $Query
+        $Query,
+        [Parameter(Mandatory=$false)]
+        [string[]]
+        $Hostnames,
+        [Parameter(Mandatory=$false)]
+        [Object[]]
+        $Credentials
     )  
+
+    Write-Verbose "Starting juniper xml query"
+
+    if ($Hostnames -ne $null)
+    {
+        Write-Verbose "Multiple hostnames provided"
+        foreach ($Hostname in $Hostnames)
+        {
+            Write-Debug "Attempting to connect to $Hostname"
+            $Result = Get-JuniperXML -Hostname $Hostname -Credential $Credential -Session $Session -Query $Query -Credentials:$Credentials
+
+            if ($Result -ne $null)
+            {
+                return $Result
+            }
+        }
+    }
+
+    if ($Credentials -ne $null)
+    {
+        Write-Verbose "Multiple credentials provided"
+        foreach ($CredentialObject in $Credentials)
+        {
+            Write-Debug "Attempting with $($CredentialObject.username)"
+            $Result = Get-JuniperXML -HostName $Hostname -Credential $CredentialObject -Session $Session -Query $Query 
+
+            if ($Result -ne $null)
+            {
+                return $Result
+            }
+        }
+    }
 
     if ($TempSession = (($Session -eq $null) -or (($Session.Host -ne $Hostname) -and ($Hostname -ne "") -and ($Session.connected))))
     {
-        if (-not $Creds)
+        if (-not $Credential)
         {
             write-Host "Please Enter the credentials for this switch"
-            $Creds = Get-Credential
+            $Credential = Get-Credential
         }
 
         if (-not $Hostname -and $Session)
@@ -110,9 +146,10 @@ Function Get-JuniperXML
             $Hostname = read-host
         }
 
-        $Session = New-SSHSession -ComputerName $Hostname -Credential $Creds -AcceptKey -ErrorAction SilentlyContinue
-
-
+        if (Test-HostStatus $Hostname)
+        {
+            $Session = New-SSHSession -ComputerName $Hostname -Credential $Credential -AcceptKey -ErrorAction SilentlyContinue
+        }
     }
 
     if ($Session)
@@ -152,12 +189,18 @@ Function Get-JuniperHardwareInfo
         [string]$Hostname,
         [Parameter(Mandatory=$false)]
         [System.Management.Automation.PsCredential]
-        $Creds,
+        $Credential,
         [Parameter(Mandatory=$false)]
         [SSH.SshSession]
-        $Session
+        $Session,
+        [Parameter(Mandatory=$false)]
+        [string[]]
+        $Hostnames,
+        [Parameter(Mandatory=$false)]
+        [Object[]]
+        $Credentials
     )
-    return (Get-JuniperXML -Session $Session -Creds $Creds -Hostname $Hostname -Query "show chassis hardware")
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show chassis hardware" -Hostnames:$Hostnames -Credentials:$Credentials)
 }
 
 Function Get-JuniperLLDPNeighbors
@@ -168,12 +211,18 @@ Function Get-JuniperLLDPNeighbors
         [string]$Hostname,
         [Parameter(Mandatory=$false)]
         [System.Management.Automation.PsCredential]
-        $Creds,
+        $Credential,
         [Parameter(Mandatory=$false)]
         [SSH.SshSession]
-        $Session
+        $Session,
+        [Parameter(Mandatory=$false)]
+        [string[]]
+        $Hostnames,
+        [Parameter(Mandatory=$false)]
+        [Object[]]
+        $Credentials
     )
-    return (Get-JuniperXML -Session $Session -Creds $Creds -Hostname $Hostname -Query "show lldp neighbors")
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show lldp neighbors" -Hostnames:$Hostnames -Credentials:$Credentials)
 }
 
 Function Get-JuniperRouteInfo
@@ -184,12 +233,18 @@ Function Get-JuniperRouteInfo
         [string]$Hostname,
         [Parameter(Mandatory=$false)]
         [System.Management.Automation.PsCredential]
-        $Creds,
+        $Credential,
         [Parameter(Mandatory=$false)]
         [SSH.SshSession]
-        $Session
+        $Session,
+        [Parameter(Mandatory=$false)]
+        [string[]]
+        $Hostnames,
+        [Parameter(Mandatory=$false)]
+        [Object[]]
+        $Credentials
     )
-    return (Get-JuniperXML -Session $Session -Creds $Creds -Hostname $Hostname -Query "show route")
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show route" -Hostnames:$Hostnames -Credentials:$Credentials)
 }
 
 Function Get-JuniperBGPPeers
@@ -200,12 +255,18 @@ Function Get-JuniperBGPPeers
         [string]$Hostname,
         [Parameter(Mandatory=$false)]
         [System.Management.Automation.PsCredential]
-        $Creds,
+        $Credential,
         [Parameter(Mandatory=$false)]
         [SSH.SshSession]
-        $Session
+        $Session,
+        [Parameter(Mandatory=$false)]
+        [string[]]
+        $Hostnames,
+        [Parameter(Mandatory=$false)]
+        [Object[]]
+        $Credentials
     )
-    return (Get-JuniperXML -Session $Session -Creds $Creds -Hostname $Hostname -Query "show bgp neighbor")
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show bgp neighbor" -Hostnames:$Hostnames -Credentials:$Credentials)
 }
 
 Function Get-JuniperRouteInfoCSV
