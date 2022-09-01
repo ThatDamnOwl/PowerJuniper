@@ -115,6 +115,8 @@ Function Get-JuniperXML
                 return $Result
             }
         }
+
+        return $null
     }
 
     if ($Credentials -ne $null)
@@ -130,6 +132,8 @@ Function Get-JuniperXML
                 return $Result
             }
         }
+
+        return $null
     }
 
     if ($TempSession = (($Session -eq $null) -or (($Session.Host -ne $Hostname) -and ($Hostname -ne "") -and ($Session.connected))))
