@@ -94,7 +94,10 @@ Function Get-JuniperXML
         $Hostnames,
         [Parameter(Mandatory=$false)]
         [Object[]]
-        $Credentials
+        $Credentials,
+        [Parameter(Mandatory=$false)]
+        [int]
+        $CommandTimeout = 2000
     )  
 
     Write-Verbose "Starting juniper xml query"
@@ -105,7 +108,7 @@ Function Get-JuniperXML
         foreach ($Hostname in $Hostnames)
         {
             Write-Debug "Attempting to connect to $Hostname"
-            $Result = Get-JuniperXML -Hostname $Hostname -Credential $Credential -Session $Session -Query $Query -Credentials:$Credentials
+            $Result = Get-JuniperXML -Hostname $Hostname -Credential $Credential -Session $Session -Query $Query -Credentials:$Credentials -CommandTimeout $CommandTimeout 
 
             if ($Result -ne $null)
             {
@@ -120,7 +123,7 @@ Function Get-JuniperXML
         foreach ($CredentialObject in $Credentials)
         {
             Write-Debug "Attempting with $($CredentialObject.username)"
-            $Result = Get-JuniperXML -HostName $Hostname -Credential $CredentialObject -Session $Session -Query $Query 
+            $Result = Get-JuniperXML -HostName $Hostname -Credential $CredentialObject -Session $Session -Query $Query -CommandTimeout $CommandTimeout 
 
             if ($Result -ne $null)
             {
@@ -154,6 +157,7 @@ Function Get-JuniperXML
 
     if ($Session)
     {
+        Write-Debug "Starting to query device with query $Query | display xml | no-more"
         $TrimLines = 0
         $ShellStream = new-sshshellstream -sessionid $Session.SessionId
         if ($Creds.Username -eq "root")
@@ -161,12 +165,22 @@ Function Get-JuniperXML
             $Ignore = invoke-sshstreamshellcommand -shellstream $ShellStream -command "cli"
         }
 
-        $Out = @(invoke-sshstreamshellcommand -shellstream $ShellStream -Command "$Query | display xml | no-more")
+        $Out = @(invoke-sshstreamshellcommand -shellstream $ShellStream -Command "$Query | display xml | no-more" -promppattern "\{master.0\}" -CommandTimeout $CommandTimeout)
 
         ##$Out.GetType() | write-Host
-        $Out = $Out | where {$_ -match "<"}
-        ##$Out | Write-Host 
-        $XMLOutput = ([xml]$Out).'rpc-reply'
+        
+        Write-Debug "Total lines returned $($Out.count)"
+
+        $XMLOut = $Out | where {$_ -match "<"}
+        
+        Write-Debug "Total lines of XML $($XMLOut.count)"
+
+        if ($XMLOut.count -eq 0)
+        {
+            $Out | Write-Debug
+        }
+
+        $XMLOutput = ([xml]$XMLOut).'rpc-reply'
     }
     else {
        Write-Host "Failed to connect to $Hostname"
@@ -198,9 +212,12 @@ Function Get-JuniperHardwareInfo
         $Hostnames,
         [Parameter(Mandatory=$false)]
         [Object[]]
-        $Credentials
+        $Credentials,
+        [Parameter(Mandatory=$false)]
+        [int]
+        $CommandTimeout = 2000
     )
-    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show chassis hardware" -Hostnames:$Hostnames -Credentials:$Credentials)
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show chassis hardware" -Hostnames:$Hostnames -Credentials:$Credentials -CommandTimeout $CommandTimeout)
 }
 
 Function Get-JuniperLLDPNeighbors
@@ -220,9 +237,12 @@ Function Get-JuniperLLDPNeighbors
         $Hostnames,
         [Parameter(Mandatory=$false)]
         [Object[]]
-        $Credentials
+        $Credentials,
+        [Parameter(Mandatory=$false)]
+        [int]
+        $CommandTimeout = 2000
     )
-    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show lldp neighbors" -Hostnames:$Hostnames -Credentials:$Credentials)
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show lldp neighbors" -Hostnames:$Hostnames -Credentials:$Credentials -CommandTimeout $CommandTimeout)
 }
 
 Function Get-JuniperRouteInfo
@@ -242,9 +262,12 @@ Function Get-JuniperRouteInfo
         $Hostnames,
         [Parameter(Mandatory=$false)]
         [Object[]]
-        $Credentials
+        $Credentials,
+        [Parameter(Mandatory=$false)]
+        [int]
+        $CommandTimeout = 2000
     )
-    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show route" -Hostnames:$Hostnames -Credentials:$Credentials)
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show route" -Hostnames:$Hostnames -Credentials:$Credentials -CommandTimeout $CommandTimeout)
 }
 
 Function Get-JuniperBGPPeers
@@ -264,9 +287,12 @@ Function Get-JuniperBGPPeers
         $Hostnames,
         [Parameter(Mandatory=$false)]
         [Object[]]
-        $Credentials
+        $Credentials,
+        [Parameter(Mandatory=$false)]
+        [int]
+        $CommandTimeout = 2000
     )
-    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show bgp neighbor" -Hostnames:$Hostnames -Credentials:$Credentials)
+    return (Get-JuniperXML -Session $Session -Credential $Credential -Hostname $Hostname -Query "show bgp neighbor" -Hostnames:$Hostnames -Credentials:$Credentials -CommandTimeout $CommandTimeout)
 }
 
 Function Get-JuniperRouteInfoCSV
