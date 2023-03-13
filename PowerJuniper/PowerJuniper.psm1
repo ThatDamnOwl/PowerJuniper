@@ -3,7 +3,7 @@ $OldVerbose = $VerbosePreference
 $VerbosePreference = "SilentlyContinue"
 
 Import-module Posh-SSH -force -verbose:$False -ErrorAction SilentlyContinue
-Import-module CommonFunctions -force -verbose:$False -ErrorAction SilentlyContinue
+Import-module AdhocAves.CommonFunctions -force -verbose:$False -ErrorAction SilentlyContinue
 
 if (-not (Test-Path C:\Temp))
 {
